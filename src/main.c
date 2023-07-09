@@ -104,72 +104,47 @@ void Write_Data(uint8_t place, uint8_t shuju)
     Write_1602_Data(shuju);
 }
 
-// 在屏幕指定位置写“Temp= ”
-void Write_Temp(uint8_t place)
+// 在屏幕初始化显示内容
+void Write_Init()
 {
     uint8_t i      = 0;
     uint8_t Temp[] = {
-        0x54,
-        0x65,
-        0x6d,
-        0x70,
-        0x3d,
-        0x20};
-    for (i = 0; i <= 5; i++)
-        Write_Data(place + i, Temp[i]);
+        0x54, // T
+        0x65, // e
+        0x6d, // m
+        0x70, // p
+        0x3d, // =
+        0x20, //
+        0x20,
+        0x20,
+        0x2e,
+        0x20,
+        0x20,
+        0xdf, // °
+        0x43  // C
+    };
+    uint8_t V[] = {
+        0x56, // V
+        0x3d, //=
+        0x20, //
+        0x20,
+        0x20,
+        0x2e,
+        0x20,
+        0x20,
+        0x76 // v
+    };
+    for (i = 0; i < 13; i++) Write_Data(0x80 + i, Temp[i]);
+    for (i = 0; i < 9; i++) Write_Data(0xc0 + i, V[i]);
 }
 
 // 在屏幕上输出小数
-void Write_float(uint8_t place, float num, uint8_t maxnum)
+void Write_float(uint8_t place, float num)
 {
-    /*
-    place 是起始位置
-    num 是具体的数值
-    maxnum 是显示的最大位数
-    */
-    int integer   = (int)num;      // 整数部分
-    float decimal = num - integer; // 小数部分
-    unsigned str[16];              // 字符串
-    uint8_t longi = 0;             // 整数部分的长度
-    uint8_t add   = 0;             // 当前字符的位置
-    int i;
-    // 初始化str
-    for (i = 0; i < 16; i++) {
-        str[i] = 0x20;
-    }
-    if (maxnum > 15)
-        maxnum = 15;
-    maxnum--;
-    // 负数
-    if (num < 0) {
-        str[add] = 0x2d; // 负号
-        add++;
-        num = -num;
-    }
-    // 整数部分
-    if (log10(num) - (int)log10(num) > 0.0000001)
-        longi = (int)log10(num) + 1;
-    else
-        longi = (int)log10(num);
-    for (i = add + longi - 1; i >= add; i--) {
-        str[i] = integer % 10 + 0x30;
-        integer /= 10;
-    }
-    add += longi;
-    // 小数部分
-    if (decimal > 0) {
-        str[add] = 0x2e; // 小数点
-        add++;
-        for (i = add; i < maxnum; i++) {
-            decimal *= 10;
-            str[i] = (int)decimal % 10 + 0x30;
-        }
-    }
-    str[maxnum++] = 0xDF;
-    str[maxnum++] = 0x43;
-    for (i = 0; i < maxnum; i++) {
-        Write_Data(place + i, str[i]);
-    }
+    int integer = (int)num;                     // 整数部分
+    int decimal = (int)((num - integer) * 100); // 小数部分
+    Write_Num(integer, place);
+    Write_Num(decimal, place + 3);
 }
 
 // PWM加热系统 单位是1ms
@@ -203,29 +178,14 @@ void light()
 {
     uint16_t t = 1;
     uint16_t i;
+    uint16_t s;
     while (1) {
-        while (t <= 500) {
-            LED = 1;
-            _nop_();
-            for (i = 1; i <= 500; i++) {
-                if (i > t) {
-                    LED = 0;
-                }
-                _nop_();
-            }
-            t++;
-        }
-        while (t > 0) {
-            LED = 1;
-            _nop_();
-            for (i = 1; i <= 500; i++) {
-                if (i > t) {
-                    LED = 0;
-                }
-                _nop_();
-            }
-            t--;
-        }
+        s   = (int)(500 * sin(t++ / 100.0));
+        LED = 1;
+        for (i = 1; i < s; i++) _nop_();
+        LED = 0;
+        for (i = s; i <= 500; i++) _nop_();
+        t %= 314;
     }
 }
 
@@ -261,17 +221,10 @@ int PID(float now_temp)
     parameter.pla++;
     parameter.pla %= 200;
 
-    // printf("int = %f\n", parameter.integeral);
-    // printf("dev = %f\n", parameter.deviation);
-    // printf("dev_l = %f\n", parameter.deviation_Last);
-    // printf("diff = %f\n", parameter.differential);
-
     parameter.deviation_Last = parameter.deviation;
 
     if (result > 100.0) result = 100;
     if (result < 0.0) result = 0;
-
-    // result += 10;
     return (int)result;
 }
 
@@ -286,7 +239,7 @@ void main()
     UART_init();         // 初始化串口
     LCD_1602_Init();     // 初始化LCD
     ADC_Init(ADC_PORT1); // 初始化AD 对应P1口
-    Write_Temp(0x80);    // 在指定位置写temp
+    Write_Init();        // 在指定位置写temp
     PID_Init();          // PID初始化
 
     // LCD显示的代码
@@ -339,6 +292,7 @@ void main()
             printf("%f\n\n", temperature);
         }
         // 1秒输出一次温度
-        Write_float(0X86, temperature, 6);
+        Write_float(0X86, temperature);
+        Write_float(0xc3, adcx);
     }
 }
