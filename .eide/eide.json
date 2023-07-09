@@ -17,7 +17,9 @@
   },
   "targets": {
     "Release": {
-      "excludeList": [],
+      "excludeList": [
+        "src/test.c"
+      ],
       "toolchain": "Keil_C51",
       "compileConfig": {
         "options": ""
