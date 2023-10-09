@@ -180,12 +180,12 @@ void light()
     uint16_t i;
     uint16_t s;
     while (1) {
-        s   = (int)(500 * sin(t++ / 100.0));
+        s   = (int)(500 * sin(t++ / 400.0));
         LED = 1;
         for (i = 1; i < s; i++) _nop_();
         LED = 0;
         for (i = s; i <= 500; i++) _nop_();
-        t %= 314;
+        t %= 628 * 2;
     }
 }
 
@@ -280,15 +280,12 @@ void main()
                 for (k = 1; k <= 2; k++) {
                     adcx += GetADCResult(ADC_CH1); // 读取电压
                 }
-                // adcx        = GetADCResult(ADC_CH1); // 读取电压
                 temperature = Temp_trans(adcx / 2); // 转换为温度
                 percent     = PID(temperature);     // 进行PID运算
                 PWM_Hot(percent);                   // 进行加热
-                // printf("percent = %d\n*\n", percent);
                 // 1ms进行一次PID运算
             }
             // 100ms进行一次串口通信
-            // printf("percent = %d\n", percent);
             printf("%f\n\n", temperature);
         }
         // 1秒输出一次温度
